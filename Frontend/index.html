@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Authentication</title>
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <h2>Register</h2>
+    <input type="text" id="registerName" placeholder="Name" />
+    <input type="email" id="registerEmail" placeholder="Email" />
+    <input type="password" id="registerPassword" placeholder="Password" />
+    <button onclick="registerUser()">Register</button>
+
+    <h2>Login</h2>
+    <input type="email" id="loginEmail" placeholder="Email" />
+    <input type="password" id="loginPassword" placeholder="Password" />
+    <button onclick="loginUser()">Login</button>
+
+    <script>
+      const API_URL = "http://localhost:5000";
+
+      document.addEventListener("DOMContentLoaded", async () => {
+        const token = localStorage.getItem("token");
+
+        if (token) {
+          try {
+            // Validate token by making a request to a protected route
+            const res = await fetch(`${API_URL}/main/sendShortUrls`, {
+              method: "GET",
+              headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (res.ok) {
+              window.location.href = "main.html"; // Redirect if token is valid
+            } else {
+              // If token is invalid or expired, clear it from storage
+              localStorage.removeItem("token");
+              localStorage.removeItem("userName");
+            }
+          } catch (error) {
+            console.error("Token validation failed:", error);
+            localStorage.removeItem("token");
+            localStorage.removeItem("userName");
+          }
+        }
+      });
+
+      // Register User
+      async function registerUser() {
+        const name = document.getElementById("registerName").value;
+        const email = document.getElementById("registerEmail").value;
+        const password = document.getElementById("registerPassword").value;
+
+        const res = await fetch(`${API_URL}/auth/register`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password }),
+        });
+
+        const data = await res.json();
+        if (res.status === 201) {
+          alert("Registration successful! Redirecting...");
+          loginUser(email, password); // Auto-login after registration
+        } else {
+          alert(data.msg);
+        }
+      }
+
+      // Login User
+      async function loginUser(email = null, password = null) {
+        if (!email || !password) {
+          email = document.getElementById("loginEmail").value;
+          password = document.getElementById("loginPassword").value;
+        }
+
+        const res = await fetch(`${API_URL}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", data.user);
+          alert("Login successful! Redirecting...");
+          window.location.href = "main.html"; // Redirect to dashboard
+        } else {
+          alert(data.msg);
+        }
+      }
+    </script>
+  </body>
+</html>

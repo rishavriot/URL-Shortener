@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <title>URL Shrinker</title>
+  </head>
+  <body>
+    <div class="container">
+      <button class="btn btn-danger" onclick="logoutUser()">Logout</button>
+      <h1>URL Shrinker</h1>
+
+      <form id="urlForm" class="my-4 d-flex">
+        <input
+          required
+          placeholder="Enter URL"
+          type="url"
+          id="fullUrl"
+          class="form-control col me-2"
+        />
+        <button class="btn btn-success" type="submit">Shrink</button>
+      </form>
+
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Full URL</th>
+              <th>Short URL</th>
+              <th>Count</th>
+              <th>Analytics</th>
+            </tr>
+          </thead>
+          <tbody id="urlTableBody">
+            <tr>
+              <td colspan="3">Loading...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        if (!localStorage.getItem("token")) {
+          window.location.href = "/index.html";
+          return;
+        }
+        fetchUrls();
+        document
+          .getElementById("urlForm")
+          .addEventListener("submit", shortTheUrl);
+      });
+
+      async function fetchUrls() {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "/index.html";
+          return;
+        }
+
+        try {
+          const response = await fetch(
+            "http://localhost:5000/main/sendShortUrls",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+
+          const data = await response.json();
+          console.log("Fetched URLs:", data); // Debugging
+
+          if (Array.isArray(data)) {
+            updateTable(data);
+          } else {
+            document.getElementById("urlTableBody").innerHTML =
+              "<tr><td colspan='3'>No URLs found.</td></tr>";
+          }
+        } catch (error) {
+          console.error("Error fetching URLs:", error);
+        }
+      }
+
+      function updateTable(urls) {
+        const tableBody = document.getElementById("urlTableBody");
+        tableBody.innerHTML = "";
+
+        if (urls.length === 0) {
+          tableBody.innerHTML = "<tr><td colspan='3'>No URLs found.</td></tr>";
+          return;
+        }
+
+        urls.forEach((url) => {
+          const row = document.createElement("tr");
+          row.innerHTML = `
+    <td><a href="${url.full}" target="_blank">${url.full}</a></td>
+    <td><a href="http://localhost:5000/url/${url.short}" 
+           target="_blank" >
+          ${url.short}
+        </a></td>
+    <td>${url.count || 0}</td>
+    <td><a href="analytics.html?id=${
+      url._id
+    }" class="btn btn-info">Analytics</a></td>
+  `;
+          tableBody.appendChild(row);
+        });
+      }
+
+      async function shortTheUrl(event) {
+        event.preventDefault(); // Prevent form submission reload
+
+        const fullUrl = document.getElementById("fullUrl").value.trim();
+        if (!fullUrl) {
+          alert("Please enter a URL.");
+          return;
+        }
+
+        const token = localStorage.getItem("token");
+        if (!token) {
+          window.location.href = "/index.html";
+          return;
+        }
+
+        try {
+          const response = await fetch("http://localhost:5000/url/shortUrls", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ fullUrl }),
+          });
+
+          const data = await response.json();
+          console.log("Response from server:", data); // Debugging
+
+          if (response.status === 201) {
+            document.getElementById("fullUrl").value = ""; // Clear input field
+            fetchUrls(); // Refresh the table
+          } else {
+            alert(data.message || "Failed to shorten URL");
+          }
+        } catch (error) {
+          console.error("Error shortening URL:", error);
+        }
+      }
+
+      function logoutUser() {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        window.location.href = "index.html"; // Redirect to login page
+      }
+    </script>
+  </body>
+</html>
